@@ -1,5 +1,42 @@
 {% extends 'base.html' %}
 {% block content %}
+
+<style>
+
+        /* Make table scrollable */
+        .table-container {
+        max-height: 400px; /* Adjust as needed */
+        overflow-y: auto;
+        border: 1px solid #ddd;
+    }
+
+    /* Sticky header */
+    thead th {
+        position: sticky;
+        top: 0;
+        background: #212529; /* Dark header */
+        color: white;
+        z-index: 10;
+    }
+
+    /* Row hover effect */
+    tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+        cursor: pointer;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        table {
+            font-size: 12px;
+        }
+        th, td {
+            padding: 6px;
+        }
+    }
+
+</style>
+
 <div class="row">
 
     <div class="col-lg-12 grid-margin stretch-card">
@@ -27,6 +64,8 @@
                     <div class="form-group row">
                         <div class="col-sm-10">
                             <button type="submit" class="btn btn-dark">Submit</button>
+                            <button onclick="exportToExcel()" class="btn btn-success fw-bold">Export to Excel</button>
+                            <button onclick="printTable()" class="btn btn-primary fw-bold">Print</button>
                         </div>
                     </div>
                 </form>
@@ -36,43 +75,50 @@
         <p style="font-size: 20px;color: blue;text-align: center;">Data Between: "{{ start_date }} to {{ end_date }}"</p>
         
           {% include 'includes/messages.html' %}
-          <table class="table table-bordered table-hover table-striped align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th class="text-center">#</th>
-                    <th class="text-center">Ticket Reference #</th>
-                    <th class="text-center">Platform</th>
-                    <th class="text-center">Date Referred to ODSU</th>
-                    <th class="text-center">Date of MOV Submission (Feedback Report and CSMF)</th>
-                    <th class="text-center">Timeliness</th>
-                    <th class="text-center">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for i in lodgedcomplaints %}
-                <tr data-status="{{ i.status }}">
-                    <td class="text-center">{{ forloop.counter }}</td>
-                    <td>{{ i.complaint_text }}</td>
-                    <td>{{ i.complainttype }}</td>
-                    <td class="text-center">{{ i.complaintdate_at |date:"Y-m-d H:i:s"}}</td>
-                    <td class="text-center">{{ i.updated_at|date:"Y-m-d H:i:s" }}</td>
-                    
-                    <td class="text-center timeliness"></td>
-                    <td class="text-center">
-                        {% if i.status == '0' %}
-                            <span class="badge badge-danger">Not Processed Yet</span>
-                        {% elif i.status == 'Inprocess' %}
-                            <span class="badge badge-warning">In-Process</span>
-                        {% elif i.status == 'Resolved' %}
-                            <span class="badge badge-warning">Responded Closed</span>
-                        {% elif i.status == 'Closed' %}
-                            <span class="badge badge-success">Resolved Closed</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+          <div class="table-container">
+            <table class="table table-bordered table-hover table-striped align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="text-center">#</th>
+                        <th class="text-center">Ticket Reference #</th>
+                        <th class="text-center">Platform</th>
+                        <th class="text-center">Date Referred to ODSU</th>
+                        <th class="text-center">Date of MOV Submission (Feedback Report and CSMF)</th>
+                        <th class="text-center">Timeliness</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in lodgedcomplaints %}
+                    <tr data-status="{{ i.status }}">
+                        <td class="text-center">{{ forloop.counter }}</td>
+                        <td>{{ i.complaint_text }}</td>
+                        <td>{{ i.complainttype }}</td>
+                        <td class="text-center">{{ i.complaintdate_at|date:"Y-m-d H:i:s" }}</td>
+                        <td class="text-center">{{ i.updated_at|date:"Y-m-d H:i:s" }}</td>
+                        <td class="text-center timeliness">
+                            {% if i.updated_at and i.complaintdate_at %}
+                                {% with diff=i.updated_at|timesince:i.complaintdate_at %}
+                                    {{ diff }}
+                                {% endwith %}
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if i.status == '0' %}
+                                <span class="badge bg-danger">Not Processed Yet</span>
+                            {% elif i.status == 'Inprocess' %}
+                                <span class="badge bg-warning">In-Process</span>
+                            {% elif i.status == 'Resolved' %}
+                                <span class="badge bg-primary">Responded Closed</span>
+                            {% elif i.status == 'Closed' %}
+                                <span class="badge bg-success">Resolved Closed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         
         
           <div class="pagination" style="padding-top: 10px;text-align: center;">
@@ -169,8 +215,193 @@
     });
 </script>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-
+<script>
+    function exportToExcel() {
+        let table = document.querySelector('.table').cloneNode(true);
+    
+        // Remove badge elements from the table to keep the text only
+        let badges = table.querySelectorAll('.badge');
+        badges.forEach(badge => {
+            badge.parentNode.innerText = badge.innerText;
+        });
+    
+        // Convert table to an array of arrays (rows and columns)
+        let worksheet = XLSX.utils.table_to_sheet(table);
+    
+        // Create signature section manually
+        let signatureSection = [
+            [],
+            ['Validated by:', 'Confirmed by:', 'Approved by:'],
+            ['KARL KEVIN C. BACON', 'FELYJANE LERAY', 'JEAN PAUL PARAJES'],
+            ['PDO II – SYSTEM DEVELOPER', 'PDO III – ROC HEAD', 'SWO V – ASSISTANT REGIONAL DIRECTOR FOR OPERATIONS']
+        ];
+    
+        // Append signature section at the bottom
+        XLSX.utils.sheet_add_aoa(worksheet, signatureSection, {
+            origin: -1 // -1 means append to the last row
+        });
+    
+        // Create workbook
+        let workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+    
+        // Save the workbook as an Excel file
+        XLSX.writeFile(workbook, 'odsus_lodged_complaints.xlsx');
+    }
+    
+        function printTable() {
+        let table = document.querySelector('.table').cloneNode(true);
+    
+        // Convert badges to plain text for printing
+        let badges = table.querySelectorAll('.badge');
+        badges.forEach(badge => {
+            badge.parentNode.innerText = badge.innerText;
+        });
+    
+        // Count ticket statuses
+        let statusCounts = {
+            'In-Process': 0,
+            'Not Processed Yet': 0,
+            'Responded Closed': 0,
+            'Resolved Closed': 0
+        };
+    
+        // Highlight "Not Processed Yet" and count statuses
+        let statusCells = table.querySelectorAll('td');
+        statusCells.forEach(cell => {
+            let status = cell.innerText.trim();
+            if (status === 'Not Processed Yet') {
+                cell.style.color = 'red';
+                cell.style.fontWeight = 'bold';
+            }
+            if (statusCounts.hasOwnProperty(status)) {
+                statusCounts[status]++;
+            }
+        });
+    
+        // Reporting message
+        let reportMessage = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="font-size: 20px; font-weight: bold; margin: 0;">Ticket Report Summary</h2>
+                <p style="margin: 5px 0;">Total In-Process: <strong>${statusCounts['In-Process']}</strong> | 
+                Total Not Processed Yet: <strong>${statusCounts['Not Processed Yet']}</strong> | 
+                Total Responded Closed: <strong>${statusCounts['Responded Closed']}</strong> | 
+                Total Resolved Closed: <strong>${statusCounts['Resolved Closed']}</strong></p>
+                <p style="margin: 5px 0;">Generated on: <strong>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</strong></p>
+            </div>
+        `;
+    
+        // Signature section
+        let signatureSection = `
+            <div style="margin-top: 50px; display: flex; justify-content: space-between; text-align: center;">
+                <div style="width: 30%; font-size: 14px;">
+                    <span>Validated by:</span>
+                    <div style="margin-top: 40px; border-top: 1px solid #000;"></div>
+                    <strong>KARL KEVIN C. BACON</strong><br>
+                    PDO II – SYSTEM DEVELOPER
+                </div>
+                <div style="width: 30%; font-size: 14px;">
+                    <span>Confirmed by:</span>
+                    <div style="margin-top: 40px; border-top: 1px solid #000;"></div>
+                    <strong>FELYJANE LERAY</strong><br>
+                    PDO III – ROC HEAD
+                </div>
+                <div style="width: 30%; font-size: 14px;">
+                    <span>Approved by:</span>
+                    <div style="margin-top: 40px; border-top: 1px solid #000;"></div>
+                    <strong>JEAN PAUL PARAJES</strong><br>
+                    SWO V – ASSISTANT REGIONAL DIRECTOR FOR OPERATIONS
+                </div>
+            </div>
+        `;
+    
+        // Create a new window for printing
+        let printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Print Table</title>
+                    <style>
+                        @page {
+                            size: A4 landscape !important;
+                            margin: 1cm;
+                        }
+                        body {
+                            font-family: Arial, sans-serif;
+                            font-size: 12px;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-bottom: 20px;
+                        }
+                        th, td {
+                            border: 1px solid #ccc;
+                            padding: 8px;
+                            text-align: center;
+                        }
+                        th {
+                            background-color: #f2f2f2 !important;
+                            color: #000 !important;
+                            font-weight: bold;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                        tr:nth-child(even) {
+                            background-color: #f9f9f9 !important;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                        /* Highlight "Not Processed Yet" */
+                        td[style*="color: red"] {
+                            color: red !important;
+                            font-weight: bold;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                        /* Reporting Message Styling */
+                        h2, p {
+                            font-family: Arial, sans-serif;
+                            text-align: center;
+                            margin: 5px 0;
+                        }
+                        /* Repeat table headers on new pages */
+                        thead {
+                            display: table-header-group;
+                        }
+                        tbody {
+                            display: table-row-group;
+                        }
+                        tfoot {
+                            display: table-footer-group;
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${reportMessage}
+                    ${table.outerHTML}
+                    ${signatureSection}
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+    
+        // FIX: Add a short delay to ensure content loads before printing
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+            printWindow.close();
+        }, 500); // 500ms delay to ensure the content is fully loaded
+    }
+    
+    
+        </script>
+    
+    
+    
+    
 
 
   

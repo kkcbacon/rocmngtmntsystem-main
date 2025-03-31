@@ -63,6 +63,26 @@
             display: none !important;
         }
     }
+
+    .table-container {
+        max-height: 400px; /* Adjust height as needed */
+        overflow-y: auto;
+        border: 1px solid #ddd;
+    }
+
+    .table thead {
+        position: sticky;
+        top: 0;
+        background: #212529;
+        color: white;
+        z-index: 10;
+    }
+
+    .table tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+
+    .text-center { text-align: center; }
     </style>
 
 
@@ -116,49 +136,50 @@
         <p style="font-size: 20px;color: blue;text-align: center;">Data Between: "{{ start_date }} to {{ end_date }}"</p>
         
           {% include 'includes/messages.html' %}
-          <table class="table table-bordered table-hover table-striped align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th class="text-center">#</th>
-                    <th class="text-center">Ticket Reference #</th>
-                    <th class="text-center">Platform</th>
-                    <th class="text-center">Date Referred to ODSU</th>
-                    <th class="text-center">Date of MOV Submission (Feedback Report and CSMF)</th>
-                    <th class="text-center">Timeliness</th>
-                    <th class="text-center">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for i in odsuslodgedcomplaints %}
-                <tr data-status="{{ i.status }}">
-                    <td class="text-center">{{ forloop.counter }}</td>
-                    <td>{{ i.complaint_text }}</td>
-                    <td>{{ i.complainttype }}</td>
-                    <td class="text-center">{{ i.complaintdate_at|date:"Y-m-d H:i:s" }}</td>
-                    <td class="text-center">{{ i.updated_at|date:"Y-m-d H:i:s" }}</td>
-                    <td class="text-center timeliness">
-                        {% if i.updated_at and i.complaintdate_at %}
-                            {% with diff=i.updated_at|timesince:i.complaintdate_at %}
-                                {{ diff }}
-                            {% endwith %}
-                        {% endif %}
-                    </td>
-                    <td class="text-center">
-                        {% if i.status == '0' %}
-                            <span class="badge bg-danger">Not Processed Yet</span>
-                        {% elif i.status == 'Inprocess' %}
-                            <span class="badge bg-warning">In-Process</span>
-                        {% elif i.status == 'Resolved' %}
-                            <span class="badge bg-primary">Responded Closed</span>
-                        {% elif i.status == 'Closed' %}
-                            <span class="badge bg-success">Resolved Closed</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        
+          <div class="table-container">
+            <table class="table table-bordered table-hover table-striped align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="text-center">#</th>
+                        <th class="text-center">Ticket Reference #</th>
+                        <th class="text-center">Platform</th>
+                        <th class="text-center">Date Referred to ODSU</th>
+                        <th class="text-center">Date of MOV Submission (Feedback Report and CSMF)</th>
+                        <th class="text-center">Timeliness</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in odsuslodgedcomplaints %}
+                    <tr data-status="{{ i.status }}">
+                        <td class="text-center">{{ forloop.counter }}</td>
+                        <td>{{ i.complaint_text }}</td>
+                        <td>{{ i.complainttype }}</td>
+                        <td class="text-center">{{ i.complaintdate_at|date:"Y-m-d H:i:s" }}</td>
+                        <td class="text-center">{{ i.updated_at|date:"Y-m-d H:i:s" }}</td>
+                        <td class="text-center timeliness">
+                            {% if i.updated_at and i.complaintdate_at %}
+                                {% with diff=i.updated_at|timesince:i.complaintdate_at %}
+                                    {{ diff }}
+                                {% endwith %}
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if i.status == '0' %}
+                                <span class="badge bg-danger">Not Processed Yet</span>
+                            {% elif i.status == 'Inprocess' %}
+                                <span class="badge bg-warning">In-Process</span>
+                            {% elif i.status == 'Resolved' %}
+                                <span class="badge bg-primary">Responded Closed</span>
+                            {% elif i.status == 'Closed' %}
+                                <span class="badge bg-success">Resolved Closed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         
         
           <div class="pagination" style="padding-top: 10px;text-align: center;">
